@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>CR環状線 路線検索</title>
+<style>
+body{
+  font-family: sans-serif;
+  text-align:center;
+  background:#f4f4f4;
+}
+
+.map{
+  max-width:95%;
+  margin:20px auto;
+  border:3px solid #ff69b4;
+  border-radius:10px;
+}
+
+.controls{
+  margin:15px;
+}
+
+select,button{
+  padding:8px;
+  margin:5px;
+  font-size:16px;
+}
+
+.signboard{
+  background:white;
+  border:3px solid black;
+  display:inline-block;
+  padding:15px 30px;
+  margin:10px;
+  font-size:20px;
+  font-weight:bold;
+  border-radius:8px;
+}
+
+.sub{
+  font-size:14px;
+  color:gray;
+}
+
+.timer{
+  font-size:28px;
+  margin-top:10px;
+  font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<h2>CR環状線</h2>
+
+<img src="無題1_20260217030921.jpeg" class="map">
+
+<div class="controls">
+<select id="start"></select>
+<select id="end"></select>
+<button onclick="calculate()">検索</button>
+</div>
+
+<div id="result"></div>
+<div id="direction"></div>
+<div id="stationCount"></div>
+
+<div class="signboard">
+<div class="sub">前の駅</div>
+<div id="prevStation">-</div>
+</div>
+
+<div class="signboard">
+<div class="sub">現在地</div>
+<div id="currentStation">-</div>
+</div>
+
+<div class="signboard">
+<div class="sub">次の駅</div>
+<div id="nextStation">-</div>
+</div>
+
+<div class="timer" id="timer">0分 0.0秒</div>
+
+<button onclick="startTimer()">スタート</button>
+<button onclick="stopTimer()">ストップ</button>
+<button onclick="resetTimer()">リセット</button>
+
+<script>
+
+const stations = [
+"荒崖","西一丁目","鯣猫","原","ありが島","家島","和国","大梅",
+"扇洲","綾代町","原野","岩波","木守","境坂","奥ノ村","花丘",
+"原町","上坂","浮宮","新工業区","カラジャス","ツヴァイ",
+"しんえい","南谷","こぐま山下"
+];
+
+const timesBetween = [
+38.3,37.3,39.7,40.0,37.0,45.0,104.0,85.7,
+47.3,56.4,65.8,87.3,78.5,87.7,141.2,62.6,
+52.7,84.2,100.0,66.2,48.9,27.1,25.5,45.7,36.3
+];
+
+let totalTime = 0;
+let remaining = 0;
+let interval = null;
+let currentIndex = 0;
+let directionForward = true;
+
+const startSelect = document.getElementById("start");
+const endSelect = document.getElementById("end");
+
+stations.forEach((station, index) => {
+  startSelect.innerHTML += `<option value="${index}">${station}</option>`;
+  endSelect.innerHTML += `<option value="${index}">${station}</option>`;
+});
+
+function calculate() {
+  let s = parseInt(startSelect.value);
+  let e = parseInt(endSelect.value);
+
+  if(s === e){
+    totalTime = 0;
+    document.getElementById("direction").innerText = "同一駅";
+    return;
+  }
+
+  let cw = 0;
+  let i = s;
+  while(i !== e){
+    cw += timesBetween[i];
+    i = (i + 1) % stations.length;
+  }
+
+  const totalLoop = timesBetween.reduce((a,b)=>a+b,0);
+  let ccw = totalLoop - cw;
+
+  if(cw <= ccw){
+    totalTime = cw;
+    directionForward = true;
+    document.getElementById("direction").innerText = "時計回り";
+  } else {
+    totalTime = ccw;
+    directionForward = false;
+    document.getElementById("direction").innerText = "反時計回り";
+  }
+
+  remaining = totalTime;
+  currentIndex = s;
+
+  document.getElementById("result").innerText =
+    "所要時間：" + formatTime(totalTime);
+
+  let stationDiff = countStations(s,e);
+  document.getElementById("stationCount").innerText =
+    "通過駅数：" + stationDiff + "駅";
+
+  updateSignboard();
+  updateTimerDisplay();
+}
+
+function countStations(s,e){
+  if(directionForward){
+    return (e - s + stations.length) % stations.length;
+  } else {
+    return (s - e + stations.length) % stations.length;
+  }
+}
+
+function updateSignboard(){
+  let prev = (currentIndex - 1 + stations.length) % stations.length;
+  let next = (currentIndex + 1) % stations.length;
+
+  document.getElementById("prevStation").innerText = stations[prev];
+  document.getElementById("currentStation").innerText = stations[currentIndex];
+  document.getElementById("nextStation").innerText = stations[next];
+}
+
+function formatTime(sec){
+  let m = Math.floor(sec / 60);
+  let s = (sec % 60).toFixed(1);
+  return m + "分 " + s + "秒";
+}
+
+function updateTimerDisplay(){
+  document.getElementById("timer").innerText =
+    formatTime(remaining);
+}
+
+function startTimer(){
+  if(interval) return;
+
+  interval = setInterval(() => {
+    if(remaining <= 0){
+      clearInterval(interval);
+      interval = null;
+      remaining = 0;
+      updateTimerDisplay();
+      alert("到着！");
+    } else {
+      remaining -= 0.1;
+      updateTimerDisplay();
+    }
+  },100);
+}
+
+function stopTimer(){
+  clearInterval(interval);
+  interval = null;
+}
+
+function resetTimer(){
+  stopTimer();
+  remaining = totalTime;
+  updateTimerDisplay();
+}
+
+</script>
+
+</body>
+</html>
